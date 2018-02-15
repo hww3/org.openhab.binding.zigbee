@@ -10,6 +10,7 @@ package org.openhab.binding.zigbee.handler;
 import java.math.BigDecimal;
 
 import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.smarthome.core.i18n.TranslationProvider;
 import org.eclipse.smarthome.core.thing.Bridge;
 import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.ThingStatus;
@@ -19,8 +20,13 @@ import org.eclipse.smarthome.core.thing.binding.firmware.FirmwareUpdateHandler;
 import org.eclipse.smarthome.core.thing.binding.firmware.ProgressCallback;
 import org.eclipse.smarthome.core.thing.binding.firmware.ProgressStep;
 import org.eclipse.smarthome.core.types.Command;
+import org.omg.PortableInterceptor.ACTIVE;
 import org.openhab.binding.zigbee.ZigBeeBindingConstants;
+import org.openhab.binding.zigbee.internal.ReconnectListener;
+import org.openhab.binding.zigbee.internal.ZigBeeNetworkPort;
 import org.openhab.binding.zigbee.internal.ZigBeeSerialPort;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +50,7 @@ import com.zsmartsystems.zigbee.transport.ZigBeeTransportTransmit;
  *
  * @author Chris Jackson - Initial contribution
  */
-public class ZigBeeCoordinatorEmberHandler extends ZigBeeCoordinatorHandler implements FirmwareUpdateHandler {
+public class ZigBeeCoordinatorEmberHandler extends ZigBeeCoordinatorHandler implements FirmwareUpdateHandler, ReconnectListener {
     private Logger logger = LoggerFactory.getLogger(ZigBeeCoordinatorEmberHandler.class);
 
     private final int DEFAULT_BAUD = 115200;
@@ -61,25 +67,47 @@ public class ZigBeeCoordinatorEmberHandler extends ZigBeeCoordinatorHandler impl
         // Not required - yet!
     }
 
+
+
     @Override
     public void initialize() {
+
         logger.debug("Initializing ZigBee Ember serial bridge handler.");
 
         // Call the parent to finish any global initialisation
         super.initialize();
 
-        portId = (String) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_PORT);
+        ZigBeePort port = null;
 
-        if (getConfig().get(ZigBeeBindingConstants.CONFIGURATION_BAUD) != null) {
-            portBaud = ((BigDecimal) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_BAUD)).intValue();
+        boolean useTcp = (boolean) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_USETCP);
+
+        if (useTcp) {
+            int tcpPort = ((BigDecimal) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_TCPPORT)).intValue();
+            String hostName = (String) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_HOSTNAME);
+
+            logger.debug("ZigBee Coordinator Ember opening Host:'{}', Port:{}, PAN:{}, EPAN:{}, Channel:{}", hostName,
+                    tcpPort, Integer.toHexString(panId), extendedPanId, Integer.toString(channelId));
+            port = new ZigBeeNetworkPort(hostName, tcpPort);
+            ((ZigBeeNetworkPort)port).setReconnectListener(this);
         } else {
-            portBaud = DEFAULT_BAUD;
-        }
-        ZigBeePort serialPort = new ZigBeeSerialPort(portId, portBaud, FlowControl.FLOWCONTROL_OUT_RTSCTS);
-        final ZigBeeTransportTransmit dongle = new ZigBeeDongleEzsp(serialPort);
+            String portId;
+            int portBaud;
 
-        logger.debug("ZigBee Coordinator Ember opening Port:'{}' PAN:{}, EPAN:{}, Channel:{}", portId,
-                Integer.toHexString(panId), extendedPanId, Integer.toString(channelId));
+            portId = (String) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_PORT);
+
+            if (getConfig().get(ZigBeeBindingConstants.CONFIGURATION_BAUD) != null) {
+                portBaud = ((BigDecimal) getConfig().get(ZigBeeBindingConstants.CONFIGURATION_BAUD)).intValue();
+            } else {
+                portBaud = DEFAULT_BAUD;
+            }
+            port = new ZigBeeSerialPort(portId, portBaud, FlowControl.FLOWCONTROL_OUT_RTSCTS);
+
+            logger.debug("ZigBee Coordinator Ember opening Port:'{}' PAN:{}, EPAN:{}, Channel:{}", portId,
+                    Integer.toHexString(panId), extendedPanId, Integer.toString(channelId));
+
+        }
+
+        final ZigBeeTransportTransmit dongle = new ZigBeeDongleEzsp(port);
 
         TransportConfig config = new TransportConfig();
 
@@ -160,5 +188,19 @@ public class ZigBeeCoordinatorEmberHandler extends ZigBeeCoordinatorHandler impl
         // but as long as we can open the serial port we should be able to bootload new
         // firmware.
         return true;
+    }
+
+    @Override
+    public void reconnected() {
+        Bundle bundle = bundleContext.getBundle();
+        if(bundle.getState() == Bundle.ACTIVE) {
+            logger.warn("Reconnected. Restarting Bundle.");
+            try {
+                bundle.stop();
+                bundle.start();
+            } catch (BundleException e) {
+                logger.warn("Unable to restart bundle.", e);
+            }
+        }
     }
 }

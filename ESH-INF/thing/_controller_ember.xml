@@ -15,6 +15,12 @@
                 <description></description>
             </parameter-group>
 
+            <parameter name="zigbee_useTcp" type="boolean">
+                <label>Use TCP?</label>
+                <description>Is receiver connected via TCP?</description>
+                <default>false</default>
+            </parameter>
+            
             <parameter name="zigbee_port" type="text" required="true">
                 <label>Port</label>
                 <context>serial-port</context>
@@ -32,7 +38,19 @@
                     <option value="115200">115200</option>
                 </options>
             </parameter>
-
+            
+            <parameter name="zigbee_hostName" type="text">
+                <label>Host Name</label>
+                <description>Host name of ZigBee gateway</description>
+                <default>localhost</default>
+                <context>network-address</context>
+            </parameter>
+            <parameter name="zigbee_tcpPort" type="integer" max="65535">
+                <label>Port Number</label>
+                <description>Network port number of ZigBee gateway</description>
+                <default>1234</default>
+            </parameter>
+            
             <parameter name="zigbee_initialise" type="boolean" groupName="network">
                 <label>Reset Controller</label>
                 <description>Resets the Controller and sets the configuration to the configured values.</description>

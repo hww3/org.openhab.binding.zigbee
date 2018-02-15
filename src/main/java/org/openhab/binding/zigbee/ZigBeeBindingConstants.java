@@ -93,8 +93,12 @@ public class ZigBeeBindingConstants {
     public final static String CONFIGURATION_PANID = "zigbee_panid";
     public final static String CONFIGURATION_EXTENDEDPANID = "zigbee_extendedpanid";
     public final static String CONFIGURATION_CHANNEL = "zigbee_channel";
+    public final static String CONFIGURATION_USETCP = "zigbee_useTcp";
     public final static String CONFIGURATION_PORT = "zigbee_port";
     public final static String CONFIGURATION_BAUD = "zigbee_baud";
+    public final static String CONFIGURATION_HOSTNAME = "zigbee_hostName";
+    public final static String CONFIGURATION_TCPPORT = "zigbee_tcpPort";
+
     public static final String CONFIGURATION_NETWORKKEY = "zigbee_networkkey";
     public static final String CONFIGURATION_PASSWORD = "zigbee_password";
     public static final String CONFIGURATION_INITIALIZE = "zigbee_initialise";
